@@ -1,7 +1,5 @@
-"""
-written by noktor
-"""
 import requests
+from tabulate import tabulate
 import re
 import json
 from pprint import pprint
@@ -21,14 +19,28 @@ class Outcome:
 
 def playoff_predictor(team_name):
    team_chances = 0
+   team_chances_with_no_ties = 0
    for outcome in outcomes:
-      sorted_team_points = sorted(outcome.team_points.items(), key=lambda item: item[1],reverse=True)[0:4]
+      teams_ahead = 0
+      teams_ahead_with_ties = 0
+      team_points = outcome.team_points[team_name]
+      sorted_team_points = sorted(outcome.team_points.items(), key=lambda item: item[1],reverse=True)
       for team,points in sorted_team_points:
          if team == team_name:
-            #print(f"{sorted_team_points}, {outcome.history}")
-            team_chances+=1
-   playoff_chance_team = (team_chances/len(outcomes)) *100          
-   print(f"{team_name} playoff chances are {playoff_chance_team}") 
+            continue
+         if points > team_points:
+            teams_ahead +=1
+         if points >= team_points:
+            teams_ahead_with_ties += 1   
+
+      if teams_ahead < 4:
+         team_chances +=1
+      if teams_ahead_with_ties < 4:
+         team_chances_with_no_ties += 1      
+   playoff_chance_team_with_ties = (team_chances/len(outcomes)) *100
+   playoff_chance_team_with_no_ties = (team_chances_with_no_ties/len(outcomes)) *100
+   return f"{playoff_chance_team_with_no_ties:.2f}",f"{playoff_chance_team_with_ties:.2f}"            
+   #print(f"{team_name} playoff chances are with ties: {playoff_chance_team_with_ties:.2f} , with no ties: {playoff_chance_team_with_no_ties:.2f}") 
    
 def get_outcome(team_points,rem_matches,history):
     
@@ -70,16 +82,17 @@ if match:
              match_history.append(f"{sbtc} wins vs {fbtc}")
         elif m["MatchStatus"] == "UpComing" and m["FirstBattingTeamCode"] !="TBD":
           remaining_matches.append((m["FirstBattingTeamCode"],m["SecondBattingTeamCode"]))
-  
-   pprint(points_table)
-   pprint(match_history)
-   pprint(len(remaining_matches))
+   
+   sorted_points_table = sorted(points_table.items(), key=lambda item: item[1],reverse=True)
+   print(tabulate(sorted_points_table,headers=["Team","Points"]))
+   #pprint(match_history)
+   #pprint(len(remaining_matches))
 
    get_outcome(points_table, remaining_matches, match_history)
-   
-   playoff_predictor("MI")
-   playoff_predictor("PBKS")
-   playoff_predictor("RCB")
-   playoff_predictor("CSK")
+   playoff_probabilities = []
+   for team,_ in sorted_points_table:
+      without_ties,with_ties = playoff_predictor(team)
+      playoff_probabilities.append((team,without_ties,with_ties))
+   print(tabulate(playoff_probabilities,headers=["Team","Playoff without Ties","Playoff with ties"]))   
           
                                          
